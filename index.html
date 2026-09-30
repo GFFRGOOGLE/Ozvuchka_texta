@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Озвучивание текста</title>
     <style>
-        /* ========== ПЕРЕМЕННЫЕ ТЕМ ========== */
         :root {
             --bg-page: #f1f5f9;
             --bg-card: #ffffff;
@@ -44,7 +43,6 @@
             --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
         }
 
-        /* ========== БАЗА ========== */
         * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
 
         body {
@@ -68,7 +66,6 @@
             position: relative;
         }
 
-        /* ========== ШАПКА ========== */
         .header {
             display: flex;
             justify-content: space-between;
@@ -95,7 +92,6 @@
         }
         .theme-toggle:hover { background: var(--border); }
 
-        /* ========== ФОРМА ========== */
         textarea {
             width: 100%;
             min-height: 110px;
@@ -156,7 +152,6 @@
 
         .range-value { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px; }
 
-        /* ========== КНОПКИ ========== */
         .buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -200,7 +195,6 @@
             margin-bottom: 16px;
         }
 
-        /* ========== ПОДСВЕТКА СЛОВ ========== */
         .readable {
             padding: 16px;
             background-color: var(--bg-input);
@@ -208,21 +202,26 @@
             border-radius: 8px;
             font-size: 15px;
             line-height: 1.8;
-            max-height: 200px;
+            max-height: 220px;
             overflow-y: auto;
             margin-bottom: 20px;
             display: none;
             color: var(--text-main);
+            position: relative;
+            scroll-behavior: smooth;
         }
         .readable.visible { display: block; }
-        .readable .word { border-radius: 3px; padding: 1px 2px; }
+        .readable .word {
+            border-radius: 3px;
+            padding: 1px 2px;
+            transition: background-color 0.15s, color 0.15s;
+        }
         .readable .word.active {
             background-color: var(--highlight-bg);
             color: var(--highlight-text);
             font-weight: 600;
         }
 
-        /* ========== ИСТОРИЯ ========== */
         .history { border-top: 1px solid var(--border); padding-top: 16px; }
 
         .history-header {
@@ -234,7 +233,6 @@
         }
         .history-header h3 { font-size: 14px; font-weight: 600; }
 
-        /* === Кнопка "Очистить" — компактная === */
         .history-header .clear-btn {
             flex: 0 0 auto;
             width: auto;
@@ -275,7 +273,6 @@
         .history-item .del:hover { opacity: 1; }
         .history-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px; }
 
-        /* ========== МОБИЛЬНАЯ АДАПТАЦИЯ ========== */
         @media (max-width: 480px) {
             .controls { grid-template-columns: 1fr; }
             .buttons { grid-template-columns: 1fr; }
@@ -351,7 +348,7 @@
 </div>
 
 <script>
-    /* ========== 1. ПЕРЕКЛЮЧАТЕЛЬ ТЕМ ========== */
+    /* ========== 1. ТЕМА ========== */
     const themeToggle = document.getElementById('themeToggle');
     const savedTheme = localStorage.getItem('tts_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -388,7 +385,71 @@
     let isPaused = false;
     let currentWords = [];
 
-    /* ========== 3. АВТООПРЕДЕЛЕНИЕ ЯЗЫКА ========== */
+    /* ========== 3. МЕХАНИЗМ ПОДСВЕТКИ (таймер + синхронизация) ========== */
+    let highlightTimerId = null;
+    let timerActive = false;
+    let currentWordIndex = 0;
+
+    function highlightWordByIndex(idx) {
+        // Снимаем активность со всех
+        for (let i = 0; i < currentWords.length; i++) {
+            currentWords[i].span.classList.remove('active');
+        }
+        if (idx < 0 || idx >= currentWords.length) return;
+        const w = currentWords[idx];
+        w.span.classList.add('active');
+        // Прокрутка, если слово вне видимой области
+        const cont = readableEl;
+        const spanTop = w.span.offsetTop;
+        const contTop = cont.scrollTop;
+        const contBottom = contTop + cont.clientHeight;
+        if (spanTop < contTop || spanTop + 32 > contBottom) {
+            cont.scrollTop = spanTop - cont.clientHeight / 2 + 20;
+        }
+    }
+
+    function stopHighlightTimer() {
+        timerActive = false;
+        if (highlightTimerId !== null) {
+            clearTimeout(highlightTimerId);
+            highlightTimerId = null;
+        }
+    }
+
+    // Запуск подсветки с определённого слова.
+    // Длительность показа каждого слова зависит от его длины и скорости речи.
+    function startHighlightTimer(fromIndex) {
+        stopHighlightTimer();
+        if (currentWords.length === 0) return;
+        let idx = Math.max(0, Math.min(fromIndex, currentWords.length - 1));
+        currentWordIndex = idx;
+        timerActive = true;
+        highlightWordByIndex(idx);
+
+        const rate = parseFloat(rateEl.value) || 1;
+
+        function tick() {
+            if (!timerActive) return;
+            if (idx >= currentWords.length - 1) {
+                timerActive = false;
+                return;
+            }
+            const w = currentWords[idx];
+            const len = Math.max(2, w.end - w.start);
+            // ~65 мс на символ при rate=1 + небольшая пауза между словами
+            const duration = Math.max(180, (len * 65 + 90)) / rate;
+            highlightTimerId = setTimeout(() => {
+                if (!timerActive) return;
+                idx++;
+                currentWordIndex = idx;
+                highlightWordByIndex(idx);
+                tick();
+            }, duration);
+        }
+        tick();
+    }
+
+    /* ========== 4. АВТООПРЕДЕЛЕНИЕ ЯЗЫКА ========== */
     function detectLanguage(text) {
         if (!text || !text.trim()) return null;
         const t = ' ' + text.toLowerCase() + ' ';
@@ -425,7 +486,7 @@
         }
     }
 
-    /* ========== 4. ГОЛОСА ========== */
+    /* ========== 5. ГОЛОСА ========== */
     function loadVoices() {
         voices = speechSynthesis.getVoices();
         voiceEl.innerHTML = '';
@@ -458,7 +519,7 @@
         speakBtn.disabled = true;
     }
 
-    /* ========== 5. ПОДСВЕТКА СЛОВ ========== */
+    /* ========== 6. РАЗБИВКА ТЕКСТА НА СЛОВА ========== */
     function renderReadable(text) {
         readableEl.innerHTML = '';
         currentWords = [];
@@ -475,8 +536,6 @@
             span.textContent = m[0];
             const start = m.index;
             const end = m.index + m[0].length;
-            span.dataset.start = start;
-            span.dataset.end = end;
             readableEl.appendChild(span);
             currentWords.push({ span, start, end });
             lastIndex = end;
@@ -487,30 +546,8 @@
         readableEl.classList.add('visible');
     }
 
-    function clearHighlight() {
-        currentWords.forEach(w => w.span.classList.remove('active'));
-    }
-
-    function highlightAt(charIndex) {
-        if (!currentWords.length) return;
-        currentWords.forEach(w => w.span.classList.remove('active'));
-        for (const w of currentWords) {
-            if (charIndex >= w.start && charIndex < w.end) {
-                w.span.classList.add('active');
-                const cont = readableEl;
-                const spanTop = w.span.offsetTop;
-                const contTop = cont.scrollTop;
-                const contBottom = contTop + cont.clientHeight;
-                if (spanTop < contTop || spanTop + 30 > contBottom) {
-                    cont.scrollTop = spanTop - cont.clientHeight / 2;
-                }
-                break;
-            }
-        }
-    }
-
-    /* ========== 6. ИСТОРИЯ ========== */
-    const HISTORY_KEY = 'tts_history_v2';
+    /* ========== 7. ИСТОРИЯ ========== */
+    const HISTORY_KEY = 'tts_history_v3';
     const HISTORY_MAX = 20;
 
     function loadHistory() {
@@ -579,10 +616,12 @@
         }
     });
 
-    /* ========== 7. ОЗВУЧИВАНИЕ ========== */
+    /* ========== 8. ОЗВУЧИВАНИЕ ========== */
     function speak(text, { onEnd } = {}) {
+        stopHighlightTimer();
         speechSynthesis.cancel();
         renderReadable(text);
+
         const u = new SpeechSynthesisUtterance(text);
         u.lang = langEl.value;
         u.rate = parseFloat(rateEl.value);
@@ -590,10 +629,42 @@
         const v = voices[voiceEl.value];
         if (v) u.voice = v;
 
-        u.onstart = () => { statusEl.textContent = '🔊 Идёт озвучивание...'; isPaused = false; pauseBtn.textContent = '⏸ Пауза'; };
-        u.onboundary = (e) => { if (e.name === 'word') highlightAt(e.charIndex); };
-        u.onend = () => { statusEl.textContent = '✅ Готово'; isPaused = false; pauseBtn.textContent = '⏸ Пауза'; clearHighlight(); if (onEnd) onEnd(); };
-        u.onerror = (e) => { if (e.error !== 'interrupted' && e.error !== 'canceled') statusEl.textContent = '❌ Ошибка: ' + e.error; if (onEnd) onEnd(); };
+        u.onstart = () => {
+            statusEl.textContent = '🔊 Идёт озвучивание...';
+            isPaused = false;
+            pauseBtn.textContent = '⏸ Пауза';
+            // Запускаем таймерную подсветку с первого слова
+            currentWordIndex = 0;
+            startHighlightTimer(0);
+        };
+
+        // Если браузер всё-таки умеет присылать onboundary — используем
+        // для синхронизации (перезапускаем таймер с правильной позиции)
+        u.onboundary = (e) => {
+            if (e.name && e.name !== 'word' && e.name !== 'sentence') return;
+            const idx = currentWords.findIndex(w => e.charIndex >= w.start && e.charIndex < w.end);
+            if (idx >= 0 && idx !== currentWordIndex) {
+                startHighlightTimer(idx);
+            }
+        };
+
+        u.onend = () => {
+            stopHighlightTimer();
+            highlightWordByIndex(-1);
+            statusEl.textContent = '✅ Готово';
+            isPaused = false;
+            pauseBtn.textContent = '⏸ Пауза';
+            if (onEnd) onEnd();
+        };
+
+        u.onerror = (e) => {
+            stopHighlightTimer();
+            if (e.error !== 'interrupted' && e.error !== 'canceled') {
+                statusEl.textContent = '❌ Ошибка: ' + e.error;
+            }
+            if (onEnd) onEnd();
+        };
+
         speechSynthesis.speak(u);
     }
 
@@ -606,30 +677,50 @@
 
     pauseBtn.addEventListener('click', () => {
         if (!speechSynthesis.speaking) return;
-        if (isPaused) { speechSynthesis.resume(); isPaused = false; pauseBtn.textContent = '⏸ Пауза'; statusEl.textContent = '🔊 Идёт озвучивание...'; }
-        else { speechSynthesis.pause(); isPaused = true; pauseBtn.textContent = '▶ Продолжить'; statusEl.textContent = '⏸ Пауза'; }
+        if (isPaused) {
+            speechSynthesis.resume();
+            startHighlightTimer(currentWordIndex);
+            isPaused = false;
+            pauseBtn.textContent = '⏸ Пауза';
+            statusEl.textContent = '🔊 Идёт озвучивание...';
+        } else {
+            speechSynthesis.pause();
+            stopHighlightTimer();
+            isPaused = true;
+            pauseBtn.textContent = '▶ Продолжить';
+            statusEl.textContent = '⏸ Пауза';
+        }
     });
 
     stopBtn.addEventListener('click', () => {
         speechSynthesis.cancel();
+        stopHighlightTimer();
+        highlightWordByIndex(-1);
         isPaused = false;
         pauseBtn.textContent = '⏸ Пауза';
         statusEl.textContent = '⏹ Остановлено';
-        clearHighlight();
     });
 
-    /* ========== 8. ЭКСПОРТ В ФАЙЛ ========== */
+    /* ========== 9. ЭКСПОРТ В ФАЙЛ ========== */
     recordBtn.addEventListener('click', async () => {
         const text = textEl.value.trim();
         if (!text) { statusEl.textContent = '⚠ Введите текст'; return; }
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { statusEl.textContent = '❌ Браузер не поддерживает запись'; return; }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            statusEl.textContent = '❌ Браузер не поддерживает запись';
+            return;
+        }
         let displayStream;
         try {
             statusEl.textContent = '🎙 Выберите вкладку и включите "Поделиться звуком"...';
             displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
         } catch { statusEl.textContent = '⏹ Запись отменена'; return; }
+
         const audioTracks = displayStream.getAudioTracks();
-        if (audioTracks.length === 0) { statusEl.textContent = '❌ Не выбран звук вкладки'; displayStream.getTracks().forEach(t => t.stop()); return; }
+        if (audioTracks.length === 0) {
+            statusEl.textContent = '❌ Не выбран звук вкладки';
+            displayStream.getTracks().forEach(t => t.stop());
+            return;
+        }
         displayStream.getVideoTracks().forEach(t => t.stop());
         const audioOnlyStream = new MediaStream(audioTracks);
         const mimeCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
@@ -654,11 +745,15 @@
         recordBtn.textContent = '⏹ Остановить запись';
         statusEl.textContent = '🔴 Идёт запись...';
         speak(text, { onEnd: () => { setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 400); } });
-        const stopOnce = () => { if (recorder.state !== 'inactive') recorder.stop(); speechSynthesis.cancel(); recordBtn.removeEventListener('click', stopOnce); };
+        const stopOnce = () => {
+            if (recorder.state !== 'inactive') recorder.stop();
+            speechSynthesis.cancel();
+            recordBtn.removeEventListener('click', stopOnce);
+        };
         setTimeout(() => { recordBtn.addEventListener('click', stopOnce, { once: true }); }, 100);
     });
 
-    /* ========== 9. ПРОЧЕЕ ========== */
+    /* ========== 10. ПРОЧЕЕ ========== */
     rateEl.addEventListener('input', () => rateVal.textContent = parseFloat(rateEl.value).toFixed(1) + 'x');
     pitchEl.addEventListener('input', () => pitchVal.textContent = parseFloat(pitchEl.value).toFixed(1));
     langEl.addEventListener('change', () => { loadVoices(); if (!autoLangEl.checked) detectedEl.textContent = langEl.value; });
@@ -679,7 +774,7 @@
     updateDetectedLanguage();
     updateReadablePreview();
     renderHistory();
-    window.addEventListener('beforeunload', () => speechSynthesis.cancel());
+    window.addEventListener('beforeunload', () => { stopHighlightTimer(); speechSynthesis.cancel(); });
 </script>
 </body>
-                  </html>
+</html>
