@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Озвучивание текста</title>
+    <style>
+        /* ========== ПЕРЕМЕННЫЕ ТЕМ ========== */
+        :root {
+            --bg-page: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #cbd5e1;
+            --primary: #1e293b;
+            --primary-hover: #334155;
+            --primary-text: #ffffff;
+            --secondary: #e2e8f0;
+            --secondary-text: #334155;
+            --danger: #ef4444;
+            --success: #10b981;
+            --highlight-bg: #fef08a;
+            --highlight-text: #854d0e;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        [data-theme="dark"] {
+            --bg-page: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #0f172a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --primary: #38bdf8;
+            --primary-hover: #0ea5e9;
+            --primary-text: #0f172a;
+            --secondary: #334155;
+            --secondary-text: #f8fafc;
+            --danger: #f87171;
+            --success: #34d399;
+            --highlight-bg: #fef08a;
+            --highlight-text: #854d0e;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ========== БАЗА ========== */
+        * { box-sizing: border-box; margin: 0; padding: 0; transition: background-color 0.2s, color 0.2s, border-color 0.2s; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 16px;
+            line-height: 1.5;
+        }
+
+        .container {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 640px;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+
+        /* ========== ШАПКА ========== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+
+        .theme-toggle {
+            background: var(--secondary);
+            color: var(--secondary-text);
+            border: none;
+            border-radius: 8px;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            flex: none;
+        }
+        .theme-toggle:hover { background: var(--border); }
+
+        /* ========== ФОРМА ========== */
+        textarea {
+            width: 100%;
+            min-height: 110px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 15px;
+            resize: vertical;
+            margin-bottom: 12px;
+        }
+        textarea:focus { outline: none; border-color: var(--primary); }
+
+        .autodetect {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+        .autodetect input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px; }
+        .autodetect label { cursor: pointer; }
+        .detected-lang {
+            margin-left: auto;
+            background: var(--secondary);
+            color: var(--secondary-text);
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .control-group { display: flex; flex-direction: column; }
+        label { font-size: 12px; color: var(--text-muted); margin-bottom: 4px; font-weight: 600; }
+
+        select, input[type="range"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 13px;
+        }
+        select:focus { outline: none; border-color: var(--primary); }
+        input[type="range"] { padding: 0; accent-color: var(--primary); }
+
+        .range-value { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 2px; }
+
+        /* ========== КНОПКИ ========== */
+        .buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .buttons button {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: opacity 0.2s, transform 0.1s, background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .buttons button:active { transform: scale(0.98); }
+        .buttons button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #speakBtn { background-color: var(--primary); color: var(--primary-text); grid-column: span 2; }
+        #speakBtn:hover { background-color: var(--primary-hover); }
+
+        #pauseBtn { background-color: var(--secondary); color: var(--secondary-text); }
+        #pauseBtn:hover { background-color: var(--border); }
+
+        #stopBtn { background-color: var(--secondary); color: var(--danger); }
+        #stopBtn:hover { background-color: var(--border); }
+
+        #recordBtn { background-color: var(--success); color: #fff; grid-column: span 2; }
+        #recordBtn:hover { opacity: 0.9; }
+
+        .status {
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            min-height: 18px;
+            margin-bottom: 16px;
+        }
+
+        /* ========== ПОДСВЕТКА СЛОВ ========== */
+        .readable {
+            padding: 16px;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.8;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            display: none;
+            color: var(--text-main);
+        }
+        .readable.visible { display: block; }
+        .readable .word { border-radius: 3px; padding: 1px 2px; }
+        .readable .word.active {
+            background-color: var(--highlight-bg);
+            color: var(--highlight-text);
+            font-weight: 600;
+        }
+
+        /* ========== ИСТОРИЯ ========== */
+        .history { border-top: 1px solid var(--border); padding-top: 16px; }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 8px;
+        }
+        .history-header h3 { font-size: 14px; font-weight: 600; }
+
+        /* === Кнопка "Очистить" — компактная === */
+        .history-header .clear-btn {
+            flex: 0 0 auto;
+            width: auto;
+            min-width: 0;
+            max-width: fit-content;
+            padding: 4px 10px;
+            font-size: 12px;
+            line-height: 1.2;
+            display: inline-block;
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: 500;
+            font-family: inherit;
+            transition: background-color 0.2s;
+        }
+        .history-header .clear-btn:hover { background-color: var(--secondary); }
+
+        .history-list { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+        .history-item {
+            padding: 10px 12px;
+            background-color: var(--bg-input);
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid transparent;
+        }
+        .history-item:hover { border-color: var(--border); }
+        .history-item .text-preview { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item .lang-badge { font-size: 10px; background: var(--secondary); color: var(--secondary-text); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+        .history-item .del { color: var(--danger); font-weight: bold; padding: 0 4px; opacity: 0.6; }
+        .history-item .del:hover { opacity: 1; }
+        .history-empty { color: var(--text-muted); font-size: 13px; text-align: center; padding: 12px; }
+
+        /* ========== МОБИЛЬНАЯ АДАПТАЦИЯ ========== */
+        @media (max-width: 480px) {
+            .controls { grid-template-columns: 1fr; }
+            .buttons { grid-template-columns: 1fr; }
+            #speakBtn, #recordBtn { grid-column: span 1; }
+            h1 { font-size: 18px; }
+            .container { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🔊 Озвучивание текста</h1>
+        <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
+    </div>
+
+    <textarea id="text" placeholder="Введите текст...">Привет! Это демонстрация синтеза речи. Слова подсвечиваются во время озвучивания.</textarea>
+
+    <div class="autodetect">
+        <input type="checkbox" id="autoLang" checked>
+        <label for="autoLang">Автоопределение языка</label>
+        <span class="detected-lang" id="detectedLang">—</span>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="voice">Голос</label>
+            <select id="voice"></select>
+        </div>
+        <div class="control-group">
+            <label for="lang">Язык</label>
+            <select id="lang">
+                <option value="ru-RU">Русский</option>
+                <option value="uk-UA">Українська</option>
+                <option value="en-US">English (US)</option>
+                <option value="en-GB">English (UK)</option>
+                <option value="de-DE">Deutsch</option>
+                <option value="fr-FR">Français</option>
+                <option value="es-ES">Español</option>
+                <option value="it-IT">Italiano</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="rate">Скорость</label>
+            <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+            <div class="range-value" id="rateValue">1.0x</div>
+        </div>
+        <div class="control-group">
+            <label for="pitch">Тон</label>
+            <input type="range" id="pitch" min="0" max="2" step="0.1" value="1">
+            <div class="range-value" id="pitchValue">1.0</div>
+        </div>
+    </div>
+
+    <div class="buttons">
+        <button id="speakBtn">▶ Озвучить</button>
+        <button id="pauseBtn">⏸ Пауза</button>
+        <button id="stopBtn">⏹ Стоп</button>
+        <button id="recordBtn">🎙 Записать в файл</button>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="readable" id="readable"></div>
+
+    <div class="history">
+        <div class="history-header">
+            <h3>📚 История</h3>
+            <button class="clear-btn" id="clearHistory">Очистить</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+    </div>
+</div>
+
+<script>
+    /* ========== 1. ПЕРЕКЛЮЧАТЕЛЬ ТЕМ ========== */
+    const themeToggle = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('tts_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+    themeToggle.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('tts_theme', next);
+        themeToggle.textContent = next === 'dark' ? '☀️' : '🌙';
+    });
+
+    /* ========== 2. ЭЛЕМЕНТЫ ========== */
+    const textEl = document.getElementById('text');
+    const voiceEl = document.getElementById('voice');
+    const langEl = document.getElementById('lang');
+    const rateEl = document.getElementById('rate');
+    const pitchEl = document.getElementById('pitch');
+    const rateVal = document.getElementById('rateValue');
+    const pitchVal = document.getElementById('pitchValue');
+    const autoLangEl = document.getElementById('autoLang');
+    const detectedEl = document.getElementById('detectedLang');
+    const speakBtn = document.getElementById('speakBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const recordBtn = document.getElementById('recordBtn');
+    const statusEl = document.getElementById('status');
+    const readableEl = document.getElementById('readable');
+    const historyList = document.getElementById('historyList');
+    const clearHistory = document.getElementById('clearHistory');
+
+    let voices = [];
+    let isPaused = false;
+    let currentWords = [];
+
+    /* ========== 3. АВТООПРЕДЕЛЕНИЕ ЯЗЫКА ========== */
+    function detectLanguage(text) {
+        if (!text || !text.trim()) return null;
+        const t = ' ' + text.toLowerCase() + ' ';
+        if (/[\u4e00-\u9fff]/.test(text)) return 'zh-CN';
+        if (/[\u3040-\u309f\u30a0-\u30ff]/.test(text)) return 'ja-JP';
+        if (/[\uac00-\ud7af]/.test(text)) return 'ko-KR';
+        if (/[\u0600-\u06ff]/.test(text)) return 'ar-SA';
+        if (/[\u0400-\u04ff]/.test(text)) {
+            let uk = 0, ru = 0;
+            if (/[іїєґ]/i.test(text)) uk += 3;
+            if (/[ыэъё]/i.test(text)) ru += 3;
+            [' і ', ' та ', ' що ', ' це ', ' як '].forEach(w => { if (t.includes(w)) uk++; });
+            [' и ', ' что ', ' это ', ' как ', ' для '].forEach(w => { if (t.includes(w)) ru++; });
+            return uk > ru ? 'uk-UA' : 'ru-RU';
+        }
+        if (/[äöüß]/i.test(text)) return 'de-DE';
+        if (/[àâçéèêëîïôûùüÿœ]/i.test(text)) return 'fr-FR';
+        if (/[ñ¿¡]/i.test(text)) return 'es-ES';
+        if (/[ãõç]/i.test(text)) return 'pt-PT';
+        if (/[ąćęłńóśźż]/i.test(text)) return 'pl-PL';
+        if (/[ğışçöü]/i.test(text)) return 'tr-TR';
+        return 'en-US';
+    }
+
+    function updateDetectedLanguage() {
+        if (!autoLangEl.checked) return;
+        const code = detectLanguage(textEl.value);
+        if (!code) { detectedEl.textContent = '—'; return; }
+        detectedEl.textContent = code;
+        const opt = [...langEl.options].find(o => o.value === code);
+        if (opt) {
+            langEl.value = code;
+            loadVoices();
+        }
+    }
+
+    /* ========== 4. ГОЛОСА ========== */
+    function loadVoices() {
+        voices = speechSynthesis.getVoices();
+        voiceEl.innerHTML = '';
+        if (voices.length === 0) {
+            const opt = document.createElement('option');
+            opt.textContent = 'Загрузка...';
+            voiceEl.appendChild(opt);
+            return;
+        }
+        const currentLang = langEl.value;
+        const base = currentLang.split('-')[0];
+        const sorted = [...voices].sort((a, b) => {
+            const aM = a.lang.toLowerCase().startsWith(base) ? 0 : 1;
+            const bM = b.lang.toLowerCase().startsWith(base) ? 0 : 1;
+            return aM - bM;
+        });
+        sorted.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = voices.indexOf(v);
+            opt.textContent = `${v.name} (${v.lang})${v.localService ? '' : ' ☁'}`;
+            voiceEl.appendChild(opt);
+        });
+    }
+
+    if ('speechSynthesis' in window) {
+        loadVoices();
+        speechSynthesis.onvoiceschanged = loadVoices;
+    } else {
+        statusEl.textContent = '❌ Ваш браузер не поддерживает синтез речи';
+        speakBtn.disabled = true;
+    }
+
+    /* ========== 5. ПОДСВЕТКА СЛОВ ========== */
+    function renderReadable(text) {
+        readableEl.innerHTML = '';
+        currentWords = [];
+        if (!text.trim()) { readableEl.classList.remove('visible'); return; }
+        const wordRegex = /\S+/g;
+        let lastIndex = 0;
+        let m;
+        while ((m = wordRegex.exec(text)) !== null) {
+            if (m.index > lastIndex) {
+                readableEl.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+            }
+            const span = document.createElement('span');
+            span.className = 'word';
+            span.textContent = m[0];
+            const start = m.index;
+            const end = m.index + m[0].length;
+            span.dataset.start = start;
+            span.dataset.end = end;
+            readableEl.appendChild(span);
+            currentWords.push({ span, start, end });
+            lastIndex = end;
+        }
+        if (lastIndex < text.length) {
+            readableEl.appendChild(document.createTextNode(text.slice(lastIndex)));
+        }
+        readableEl.classList.add('visible');
+    }
+
+    function clearHighlight() {
+        currentWords.forEach(w => w.span.classList.remove('active'));
+    }
+
+    function highlightAt(charIndex) {
+        if (!currentWords.length) return;
+        currentWords.forEach(w => w.span.classList.remove('active'));
+        for (const w of currentWords) {
+            if (charIndex >= w.start && charIndex < w.end) {
+                w.span.classList.add('active');
+                const cont = readableEl;
+                const spanTop = w.span.offsetTop;
+                const contTop = cont.scrollTop;
+                const contBottom = contTop + cont.clientHeight;
+                if (spanTop < contTop || spanTop + 30 > contBottom) {
+                    cont.scrollTop = spanTop - cont.clientHeight / 2;
+                }
+                break;
+            }
+        }
+    }
+
+    /* ========== 6. ИСТОРИЯ ========== */
+    const HISTORY_KEY = 'tts_history_v2';
+    const HISTORY_MAX = 20;
+
+    function loadHistory() {
+        try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+        catch { return []; }
+    }
+
+    function saveHistory(items) {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_MAX)));
+    }
+
+    function renderHistory() {
+        const items = loadHistory();
+        historyList.innerHTML = '';
+        if (items.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'history-empty';
+            empty.textContent = 'История пуста';
+            historyList.appendChild(empty);
+            return;
+        }
+        items.forEach((item, i) => {
+            const div = document.createElement('div');
+            div.className = 'history-item';
+            const preview = document.createElement('div');
+            preview.className = 'text-preview';
+            preview.textContent = item.text;
+            preview.title = item.text;
+            preview.addEventListener('click', () => {
+                textEl.value = item.text;
+                if (item.lang) { langEl.value = item.lang; loadVoices(); }
+                updateDetectedLanguage();
+                updateReadablePreview();
+            });
+            const badge = document.createElement('span');
+            badge.className = 'lang-badge';
+            badge.textContent = item.lang || '—';
+            const del = document.createElement('span');
+            del.className = 'del';
+            del.textContent = '✕';
+            del.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const arr = loadHistory();
+                arr.splice(i, 1);
+                saveHistory(arr);
+                renderHistory();
+            });
+            div.append(preview, badge, del);
+            historyList.appendChild(div);
+        });
+    }
+
+    function addToHistory(text, lang) {
+        if (!text.trim()) return;
+        let arr = loadHistory();
+        arr = arr.filter(x => x.text !== text);
+        arr.unshift({ text, lang, ts: Date.now() });
+        saveHistory(arr);
+        renderHistory();
+    }
+
+    clearHistory.addEventListener('click', () => {
+        if (confirm('Очистить всю историю?')) {
+            localStorage.removeItem(HISTORY_KEY);
+            renderHistory();
+        }
+    });
+
+    /* ========== 7. ОЗВУЧИВАНИЕ ========== */
+    function speak(text, { onEnd } = {}) {
+        speechSynthesis.cancel();
+        renderReadable(text);
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = langEl.value;
+        u.rate = parseFloat(rateEl.value);
+        u.pitch = parseFloat(pitchEl.value);
+        const v = voices[voiceEl.value];
+        if (v) u.voice = v;
+
+        u.onstart = () => { statusEl.textContent = '🔊 Идёт озвучивание...'; isPaused = false; pauseBtn.textContent = '⏸ Пауза'; };
+        u.onboundary = (e) => { if (e.name === 'word') highlightAt(e.charIndex); };
+        u.onend = () => { statusEl.textContent = '✅ Готово'; isPaused = false; pauseBtn.textContent = '⏸ Пауза'; clearHighlight(); if (onEnd) onEnd(); };
+        u.onerror = (e) => { if (e.error !== 'interrupted' && e.error !== 'canceled') statusEl.textContent = '❌ Ошибка: ' + e.error; if (onEnd) onEnd(); };
+        speechSynthesis.speak(u);
+    }
+
+    speakBtn.addEventListener('click', () => {
+        const text = textEl.value.trim();
+        if (!text) { statusEl.textContent = '⚠ Введите текст'; return; }
+        addToHistory(text, langEl.value);
+        speak(text);
+    });
+
+    pauseBtn.addEventListener('click', () => {
+        if (!speechSynthesis.speaking) return;
+        if (isPaused) { speechSynthesis.resume(); isPaused = false; pauseBtn.textContent = '⏸ Пауза'; statusEl.textContent = '🔊 Идёт озвучивание...'; }
+        else { speechSynthesis.pause(); isPaused = true; pauseBtn.textContent = '▶ Продолжить'; statusEl.textContent = '⏸ Пауза'; }
+    });
+
+    stopBtn.addEventListener('click', () => {
+        speechSynthesis.cancel();
+        isPaused = false;
+        pauseBtn.textContent = '⏸ Пауза';
+        statusEl.textContent = '⏹ Остановлено';
+        clearHighlight();
+    });
+
+    /* ========== 8. ЭКСПОРТ В ФАЙЛ ========== */
+    recordBtn.addEventListener('click', async () => {
+        const text = textEl.value.trim();
+        if (!text) { statusEl.textContent = '⚠ Введите текст'; return; }
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { statusEl.textContent = '❌ Браузер не поддерживает запись'; return; }
+        let displayStream;
+        try {
+            statusEl.textContent = '🎙 Выберите вкладку и включите "Поделиться звуком"...';
+            displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        } catch { statusEl.textContent = '⏹ Запись отменена'; return; }
+        const audioTracks = displayStream.getAudioTracks();
+        if (audioTracks.length === 0) { statusEl.textContent = '❌ Не выбран звук вкладки'; displayStream.getTracks().forEach(t => t.stop()); return; }
+        displayStream.getVideoTracks().forEach(t => t.stop());
+        const audioOnlyStream = new MediaStream(audioTracks);
+        const mimeCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+        const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+        const recorder = new MediaRecorder(audioOnlyStream, mimeType ? { mimeType } : undefined);
+        const chunks = [];
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        recorder.onstop = () => {
+            audioTracks.forEach(t => t.stop());
+            const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const ext = (mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm');
+            a.href = url;
+            a.download = `speech-${Date.now()}.${ext}`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+            statusEl.textContent = '✅ Файл сохранён (' + ext + ')';
+            recordBtn.textContent = '🎙 Записать в файл';
+        };
+        recorder.start(200);
+        recordBtn.textContent = '⏹ Остановить запись';
+        statusEl.textContent = '🔴 Идёт запись...';
+        speak(text, { onEnd: () => { setTimeout(() => { if (recorder.state !== 'inactive') recorder.stop(); }, 400); } });
+        const stopOnce = () => { if (recorder.state !== 'inactive') recorder.stop(); speechSynthesis.cancel(); recordBtn.removeEventListener('click', stopOnce); };
+        setTimeout(() => { recordBtn.addEventListener('click', stopOnce, { once: true }); }, 100);
+    });
+
+    /* ========== 9. ПРОЧЕЕ ========== */
+    rateEl.addEventListener('input', () => rateVal.textContent = parseFloat(rateEl.value).toFixed(1) + 'x');
+    pitchEl.addEventListener('input', () => pitchVal.textContent = parseFloat(pitchEl.value).toFixed(1));
+    langEl.addEventListener('change', () => { loadVoices(); if (!autoLangEl.checked) detectedEl.textContent = langEl.value; });
+    autoLangEl.addEventListener('change', () => { if (autoLangEl.checked) updateDetectedLanguage(); });
+
+    let detectTimer;
+    function updateReadablePreview() {
+        const text = textEl.value.trim();
+        if (text) renderReadable(text);
+        else readableEl.classList.remove('visible');
+    }
+
+    textEl.addEventListener('input', () => {
+        clearTimeout(detectTimer);
+        detectTimer = setTimeout(() => { updateDetectedLanguage(); updateReadablePreview(); }, 300);
+    });
+
+    updateDetectedLanguage();
+    updateReadablePreview();
+    renderHistory();
+    window.addEventListener('beforeunload', () => speechSynthesis.cancel());
+</script>
+</body>
+                  </html>
