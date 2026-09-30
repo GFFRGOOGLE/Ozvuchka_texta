@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Озвучивание текста PRO</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+  }
+
+  .container {
+    background: #fff;
+    border-radius: 20px;
+    padding: 30px;
+    width: 100%;
+    max-width: 800px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  h1 {
+    color: #333;
+    margin-bottom: 8px;
+    text-align: center;
+    font-size: 26px;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #888;
+    font-size: 13px;
+    margin-bottom: 20px;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 140px;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { outline: none; border-color: #667eea; }
+
+  .autodetect {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: #555;
+  }
+
+  .detected-lang {
+    margin-left: auto;
+    background: #f0edff;
+    color: #764ba2;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 18px;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  label {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  select, input[type="range"] {
+    width: 100%;
+    padding: 8px;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+  }
+  select:focus { outline: none; border-color: #667eea; }
+
+  .range-value {
+    font-size: 12px;
+    color: #764ba2;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 2px;
+  }
+
+  .buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    flex: 1;
+    min-width: 110px;
+    padding: 13px 18px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+
+  #speakBtn { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+  #speakBtn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102,126,234,0.4); }
+  #speakBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  #pauseBtn { background: #ffe066; color: #333; }
+  #pauseBtn:hover { background: #ffd633; transform: translateY(-2px); }
+
+  #stopBtn { background: #ff6b6b; color: #fff; }
+  #stopBtn:hover { background: #ee5252; transform: translateY(-2px); }
+
+  #recordBtn { background: #22c55e; color: #fff; }
+  #recordBtn:hover { background: #16a34a; transform: translateY(-2px); }
+
+  .status {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 13px;
+    color: #888;
+    min-height: 18px;
+  }
+
+  /* Область выделения произносимых слов */
+  .readable {
+    margin-top: 18px;
+    padding: 15px;
+    background: #fafaff;
+    border: 2px dashed #e0e0e0;
+    border-radius: 12px;
+    font-size: 16px;
+    line-height: 1.7;
+    max-height: 200px;
+    overflow-y: auto;
+    color: #444;
+    display: none;
+  }
+  .readable.visible { display: block; }
+
+  .readable .word {
+    transition: background 0.15s, color 0.15s;
+    border-radius: 4px;
+    padding: 1px 2px;
+  }
+  .readable .word.active {
+    background: #764ba2;
+    color: #fff;
+    box-shadow: 0 0 0 2px rgba(118,75,162,0.3);
+  }
+
+  /* История */
+  .history {
+    margin-top: 25px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+  }
+  .history h3 {
+    font-size: 15px;
+    color: #555;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .history h3 button {
+    flex: none;
+    padding: 5px 12px;
+    font-size: 12px;
+    background: #f3f3f3;
+    color: #666;
+    min-width: auto;
+  }
+  .history h3 button:hover { background: #e5e5e5; }
+
+  .history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+
+  .history-item {
+    padding: 10px 12px;
+    background: #f8f8fc;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #555;
+    cursor: pointer;
+    border-left: 3px solid #667eea;
+    transition: background 0.15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .history-item:hover { background: #eeeaff; }
+  .history-item .text-preview {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .history-item .lang-badge {
+    font-size: 10px;
+    background: #764ba2;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  .history-item .del {
+    color: #ff6b6b;
+    font-weight: 700;
+    padding: 0 4px;
+  }
+  .history-empty {
+    color: #aaa;
+    font-size: 13px;
+    text-align: center;
+    padding: 10px;
+  }
+
+  @media (max-width: 500px) {
+    .controls { grid-template-columns: 1fr; }
+    .buttons { flex-direction: column; }
+    button { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🔊 Озвучивание текста PRO</h1>
+  <div class="subtitle">Автоопределение языка · История · Подсветка слов · Экспорт</div>
+
+  <textarea id="text" placeholder="Введите текст...">Привет! Это демонстрация синтеза речи. Слова подсвечиваются во время озвучивания.</textarea>
+
+  <div class="autodetect">
+    <input type="checkbox" id="autoLang" checked>
+    <label for="autoLang" style="margin:0;font-weight:400;cursor:pointer;">Автоопределение языка</label>
+    <span class="detected-lang" id="detectedLang">—</span>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="voice">Голос</label>
+      <select id="voice"></select>
+    </div>
+
+    <div class="control-group">
+      <label for="lang">Язык</label>
+      <select id="lang">
+        <option value="ru-RU">Русский</option>
+        <option value="uk-UA">Українська</option>
+        <option value="en-US">English (US)</option>
+        <option value="en-GB">English (UK)</option>
+        <option value="de-DE">Deutsch</option>
+        <option value="fr-FR">Français</option>
+        <option value="es-ES">Español</option>
+        <option value="it-IT">Italiano</option>
+        <option value="pt-PT">Português</option>
+        <option value="pl-PL">Polski</option>
+        <option value="tr-TR">Türkçe</option>
+        <option value="ja-JP">日本語</option>
+        <option value="zh-CN">中文</option>
+        <option value="ko-KR">한국어</option>
+        <option value="ar-SA">العربية</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="rate">Скорость</label>
+      <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
+      <div class="range-value" id="rateValue">1.0x</div>
+    </div>
+
+    <div class="control-group">
+      <label for="pitch">Тон</label>
+      <input type="range" id="pitch" min="0" max="2" step="0.1" value="1">
+      <div class="range-value" id="pitchValue">1.0</div>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button id="speakBtn">▶ Озвучить</button>
+    <button id="pauseBtn">⏸ Пауза</button>
+    <button id="stopBtn">⏹ Стоп</button>
+    <button id="recordBtn" title="Запись в аудиофайл через захват вкладки">🎙 Записать в файл</button>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <!-- Область с подсветкой произносимых слов -->
+  <div class="readable" id="readable"></div>
+
+  <!-- История -->
+  <div class="history">
+    <h3>
+      📚 История
+      <button id="clearHistory">Очистить</button>
+    </h3>
+    <div class="history-list" id="historyList"></div>
+  </div>
+</div>
+
+<script>
+/* ============ ЭЛЕМЕНТЫ ============ */
+const textEl       = document.getElementById('text');
+const voiceEl      = document.getElementById('voice');
+const langEl       = document.getElementById('lang');
+const rateEl       = document.getElementById('rate');
+const pitchEl      = document.getElementById('pitch');
+const rateVal      = document.getElementById('rateValue');
+const pitchVal     = document.getElementById('pitchValue');
+const autoLangEl   = document.getElementById('autoLang');
+const detectedEl   = document.getElementById('detectedLang');
+const speakBtn     = document.getElementById('speakBtn');
+const pauseBtn     = document.getElementById('pauseBtn');
+const stopBtn      = document.getElementById('stopBtn');
+const recordBtn    = document.getElementById('recordBtn');
+const statusEl     = document.getElementById('status');
+const readableEl   = document.getElementById('readable');
+const historyList  = document.getElementById('historyList');
+const clearHistory = document.getElementById('clearHistory');
+
+let voices = [];
+let isPaused = false;
+let currentWords = [];   // {span, start, end}
+
+/* ============ 1. АВТООПРЕДЕЛЕНИЕ ЯЗЫКА ============ */
+
+// Эвристика по символам + частым словам
+const LANG_PATTERNS = [
+  // Порядок важен: специфичные проверки первыми
+  { code: 'uk-UA', test: /[іїєґ]/i, weight: 3 },
+  { code: 'uk-UA', words: [' і ', ' та ', ' що ', ' не ', ' на ', ' це ', ' як '] },
+  { code: 'ru-RU', test: /[ыэъё]/i, weight: 3 },
+  { code: 'ru-RU', words: [' и ', ' что ', ' не ', ' на ', ' это ', ' как ', ' для '] },
+  { code: 'bg-BG', test: /[ъ]/i, weight: 1 }, // общий с русским, слабый признак
+  { code: 'de-DE', test: /[äöüß]/i, weight: 4 },
+  { code: 'de-DE', words: [' und ', ' der ', ' die ', ' das ', ' ist ', ' nicht '] },
+  { code: 'fr-FR', test: /[àâçéèêëîïôûùüÿœ]/i, weight: 3 },
+  { code: 'fr-FR', words: [' le ', ' la ', ' les ', ' et ', ' est ', ' une ', " c'est "] },
+  { code: 'es-ES', test: /[ñ¿¡]/i, weight: 4 },
+  { code: 'es-ES', words: [' el ', ' la ', ' los ', ' y ', ' es ', ' que ', ' para '] },
+  { code: 'it-IT', words: [' il ', ' lo ', ' gli ', ' e ', ' è ', ' che ', ' per '] },
+  { code: 'pt-PT', test: /[ãõç]/i, weight: 3 },
+  { code: 'pt-PT', words: [' o ', ' a ', ' os ', ' e ', ' é ', ' que ', ' para '] },
+  { code: 'pl-PL', test: /[ąćęłńóśźż]/i, weight: 4 },
+  { code: 'tr-TR', test: /[ğışçöü]/i, weight: 3 },
+];
+
+function detectLanguage(text) {
+  if (!text || !text.trim()) return null;
+  const t = ' ' + text.toLowerCase() + ' ';
+
+  // 1. По алфавиту (если есть не-латиница)
+  if (/[\u4e00-\u9fff]/.test(text)) return 'zh-CN';
+  if (/[\u3040-\u309f\u30a0-\u30ff]/.test(text)) return 'ja-JP';
+  if (/[\uac00-\ud7af]/.test(text)) return 'ko-KR';
+  if (/[\u0600-\u06ff]/.test(text)) return 'ar-SA';
+  if (/[\u0400-\u04ff]/.test(text)) {
+    // кириллица — уточняем ru/uk
+    let uk = 0, ru = 0;
+    if (/[іїєґ]/i.test(text)) uk += 3;
+    if (/[ыэъё]/i.test(text)) ru += 3;
+    [' і ', ' та ', ' що ', ' не ', ' це ', ' як '].forEach(w => { if (t.includes(w)) uk++; });
+    [' и ', ' что ', ' это ', ' как ', ' для '].forEach(w => { if (t.includes(w)) ru++; });
+    return uk > ru ? 'uk-UA' : 'ru-RU';
+  }
+
+  // 2. Латиница — считаем вес по эвристикам
+  const scores = {};
+  LANG_PATTERNS.forEach(p => {
+    if (p.test && p.test.test(text)) {
+      scores[p.code] = (scores[p.code] || 0) + p.weight;
+    }
+    if (p.words) {
+      p.words.forEach(w => {
+        if (t.includes(w)) scores[p.code] = (scores[p.code] || 0) + 1;
+      });
+    }
+  });
+
+  const entries = Object.entries(scores);
+  if (entries.length === 0) return 'en-US'; // по умолчанию
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries[0][0];
+}
+
+function updateDetectedLanguage() {
+  if (!autoLangEl.checked) return;
+  const code = detectLanguage(textEl.value);
+  if (!code) { detectedEl.textContent = '—'; return; }
+
+  detectedEl.textContent = code;
+  // Если такой язык есть в списке — переключаем
+  const opt = [...langEl.options].find(o => o.value === code);
+  if (opt) {
+    langEl.value = code;
+    loadVoices();
+  }
+}
+
+/* ============ 2. ГОЛОСА ============ */
+
+function loadVoices() {
+  voices = speechSynthesis.getVoices();
+  voiceEl.innerHTML = '';
+  if (voices.length === 0) {
+    const opt = document.createElement('option');
+    opt.textContent = 'Голоса не найдены';
+    voiceEl.appendChild(opt);
+    return;
+  }
+  const currentLang = langEl.value;
+  const base = currentLang.split('-')[0];
+  const sorted = [...voices].sort((a, b) => {
+    const aM = a.lang.toLowerCase().startsWith(base) ? 0 : 1;
+    const bM = b.lang.toLowerCase().startsWith(base) ? 0 : 1;
+    return aM - bM;
+  });
+  sorted.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = voices.indexOf(v);
+    // Отмечаем локальные голоса (у них работает подсветка)
+    const localMark = v.localService ? '' : ' ☁';
+    opt.textContent = `${v.name} (${v.lang})${localMark}`;
+    voiceEl.appendChild(opt);
+  });
+}
+
+if ('speechSynthesis' in window) {
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+} else {
+  statusEl.textContent = '❌ Ваш браузер не поддерживает синтез речи';
+  speakBtn.disabled = true;
+}
+
+/* ============ 3. ПОДСВЕТКА СЛОВ (onboundary) ============ */
+
+function renderReadable(text) {
+  readableEl.innerHTML = '';
+  currentWords = [];
+  if (!text.trim()) { readableEl.classList.remove('visible'); return; }
+
+  const wordRegex = /\S+/g;
+  let lastIndex = 0;
+  let m;
+
+  while ((m = wordRegex.exec(text)) !== null) {
+    if (m.index > lastIndex) {
+      readableEl.appendChild(document.createTextNode(text.slice(lastIndex, m.index)));
+    }
+    const span = document.createElement('span');
+    span.className = 'word';
+    span.textContent = m[0];
+    const start = m.index;
+    const end = m.index + m[0].length;
+    span.dataset.start = start;
+    span.dataset.end = end;
+    readableEl.appendChild(span);
+    currentWords.push({ span, start, end });
+    lastIndex = end;
+  }
+  if (lastIndex < text.length) {
+    readableEl.appendChild(document.createTextNode(text.slice(lastIndex)));
+  }
+  readableEl.classList.add('visible');
+}
+
+function clearHighlight() {
+  currentWords.forEach(w => w.span.classList.remove('active'));
+}
+
+function highlightAt(charIndex) {
+  if (!currentWords.length) return;
+  // Снимаем подсветку у предыдущего, ставим у текущего
+  currentWords.forEach(w => w.span.classList.remove('active'));
+  for (const w of currentWords) {
+    if (charIndex >= w.start && charIndex < w.end) {
+      w.span.classList.add('active');
+      // Плавная прокрутка, если слово вне видимой области
+      const cont = readableEl;
+      const spanTop = w.span.offsetTop;
+      const contTop = cont.scrollTop;
+      const contBottom = contTop + cont.clientHeight;
+      if (spanTop < contTop || spanTop + 30 > contBottom) {
+        cont.scrollTop = spanTop - cont.clientHeight / 2;
+      }
+      break;
+    }
+  }
+}
+
+/* ============ 4. ИСТОРИЯ (localStorage) ============ */
+
+const HISTORY_KEY = 'tts_history_v1';
+const HISTORY_MAX = 30;
+
+function loadHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+  } catch { return []; }
+}
+
+function saveHistory(items) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_MAX)));
+}
+
+function renderHistory() {
+  const items = loadHistory();
+  historyList.innerHTML = '';
+  if (items.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty';
+    empty.textContent = 'История пуста';
+    historyList.appendChild(empty);
+    return;
+  }
+  items.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+
+    const preview = document.createElement('div');
+    preview.className = 'text-preview';
+    preview.textContent = item.text;
+    preview.title = item.text;
+    preview.addEventListener('click', () => {
+      textEl.value = item.text;
+      if (item.lang) {
+        langEl.value = item.lang;
+        loadVoices();
+      }
+      updateDetectedLanguage();
+      updateReadablePreview();
+    });
+
+    const badge = document.createElement('span');
+    badge.className = 'lang-badge';
+    badge.textContent = item.lang || '—';
+
+    const del = document.createElement('span');
+    del.className = 'del';
+    del.textContent = '✕';
+    del.title = 'Удалить';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const arr = loadHistory();
+      arr.splice(i, 1);
+      saveHistory(arr);
+      renderHistory();
+    });
+
+    div.append(preview, badge, del);
+    historyList.appendChild(div);
+  });
+}
+
+function addToHistory(text, lang) {
+  if (!text.trim()) return;
+  let arr = loadHistory();
+  // Убираем дубликат
+  arr = arr.filter(x => x.text !== text);
+  arr.unshift({ text, lang, ts: Date.now() });
+  saveHistory(arr);
+  renderHistory();
+}
+
+clearHistory.addEventListener('click', () => {
+  if (confirm('Очистить всю историю?')) {
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
+  }
+});
+
+/* ============ 5. ОЗВУЧИВАНИЕ ============ */
+
+function buildUtterance(text) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang  = langEl.value;
+  u.rate  = parseFloat(rateEl.value);
+  u.pitch = parseFloat(pitchEl.value);
+  const v = voices[voiceEl.value];
+  if (v) u.voice = v;
+  return u;
+}
+
+function speak(text, { onEnd } = {}) {
+  speechSynthesis.cancel();
+  renderReadable(text);
+
+  const u = buildUtterance(text);
+
+  u.onstart = () => {
+    statusEl.textContent = '🔊 Идёт озвучивание...';
+    isPaused = false;
+    pauseBtn.textContent = '⏸ Пауза';
+  };
+
+  u.onboundary = (e) => {
+    // В некоторых движках e.name == 'word', в других приходит только charIndex
+    if (e.name && e.name !== 'word' && e.name !== 'sentence') return;
+    highlightAt(e.charIndex);
+  };
+
+  u.onend = () => {
+    statusEl.textContent = '✅ Готово';
+    isPaused = false;
+    pauseBtn.textContent = '⏸ Пауза';
+    clearHighlight();
+    if (onEnd) onEnd();
+  };
+
+  u.onerror = (e) => {
+    if (e.error !== 'interrupted' && e.error !== 'canceled') {
+      statusEl.textContent = '❌ Ошибка: ' + e.error;
+    }
+    if (onEnd) onEnd();
+  };
+
+  speechSynthesis.speak(u);
+}
+
+/* ============ Обработчики кнопок ============ */
+
+speakBtn.addEventListener('click', () => {
+  const text = textEl.value.trim();
+  if (!text) { statusEl.textContent = '⚠ Введите текст'; return; }
+  addToHistory(text, langEl.value);
+  speak(text);
+});
+
+pauseBtn.addEventListener('click', () => {
+  if (!speechSynthesis.speaking) return;
+  if (isPaused) {
+    speechSynthesis.resume();
+    isPaused = false;
+    pauseBtn.textContent = '⏸ Пауза';
+    statusEl.textContent = '🔊 Идёт озвучивание...';
+  } else {
+    speechSynthesis.pause();
+    isPaused = true;
+    pauseBtn.textContent = '▶ Продолжить';
+    statusEl.textContent = '⏸ Пауза';
+  }
+});
+
+stopBtn.addEventListener('click', () => {
+  speechSynthesis.cancel();
+  isPaused = false;
+  pauseBtn.textContent = '⏸ Пауза';
+  statusEl.textContent = '⏹ Остановлено';
+  clearHighlight();
+});
+
+/* ============ 6. ЭКСПОРТ В АУДИОФАЙЛ ============ */
+
+/*
+  Полноценный MP3 требует серверного TTS (Google Cloud TTS, Yandex SpeechKit,
+  Amazon Polly и т.п.). Браузерный SpeechSynthesis такой возможности не даёт.
+
+  Здесь реализован рабочий КЛИЕНТСКИЙ вариант: мы захватываем звук вкладки
+  через getDisplayMedia и пишем его в MediaRecorder → файл .webm (audio).
+  .webm открывается любым плеером и легко конвертируется в MP3 (например,
+  через ffmpeg: `ffmpeg -i speech.webm speech.mp3`).
+
+  Если нужен настоящий MP3 на выходе — раскомментируйте функцию
+  exportViaServer() внизу и укажите свой API-ключ.
+*/
+
+recordBtn.addEventListener('click', async () => {
+  const text = textEl.value.trim();
+  if (!text) { statusEl.textContent = '⚠ Введите текст'; return; }
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    statusEl.textContent = '❌ Браузер не поддерживает запись';
+    return;
+  }
+
+  let displayStream;
+  try {
+    statusEl.textContent = '🎙 Выберите вкладку и включите "Поделиться звуком вкладки"...';
+    // Chrome требует video, но мы сразу выбросим видеодорожку
+    displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    });
+  } catch {
+    statusEl.textContent = '⏹ Запись отменена';
+    return;
+  }
+
+  const audioTracks = displayStream.getAudioTracks();
+  if (audioTracks.length === 0) {
+    statusEl.textContent = '❌ Не выбран звук вкладки (нужно поставить галочку "Поделиться звуком")';
+    displayStream.getTracks().forEach(t => t.stop());
+    return;
+  }
+
+  // Останавливаем видеодорожку — она нам не нужна
+  displayStream.getVideoTracks().forEach(t => t.stop());
+
+  const audioOnlyStream = new MediaStream(audioTracks);
+  const mimeCandidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/ogg;codecs=opus',
+    'audio/mp4'
+  ];
+  const mimeType = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+
+  const recorder = new MediaRecorder(audioOnlyStream, mimeType ? { mimeType } : undefined);
+  const chunks = [];
+
+  recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+
+  recorder.onstop = () => {
+    audioTracks.forEach(t => t.stop());
+    const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ext = (mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm');
+    a.href = url;
+    a.download = `speech-${Date.now()}.${ext}`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    statusEl.textContent = '✅ Файл сохранён (' + ext + ')';
+    recordBtn.textContent = '🎙 Записать в файл';
+  };
+
+  recorder.start(200);
+  recordBtn.textContent = '⏹ Остановить запись';
+  statusEl.textContent = '🔴 Идёт запись...';
+
+  // Озвучиваем и останавливаем запись, когда речь закончится
+  speak(text, {
+    onEnd: () => {
+      // небольшая задержка, чтобы захватить хвост аудио
+      setTimeout(() => {
+        if (recorder.state !== 'inactive') recorder.stop();
+      }, 400);
+    }
+  });
+
+  // Если пользователь нажмёт кнопку ещё раз — остановим запись досрочно
+  const stopOnce = () => {
+    if (recorder.state !== 'inactive') recorder.stop();
+    speechSynthesis.cancel();
+    recordBtn.removeEventListener('click', stopOnce);
+  };
+  // Временный "второй клик = стоп"
+  setTimeout(() => {
+    recordBtn.addEventListener('click', stopOnce, { once: true });
+  }, 100);
+});
+
+/* --------------------------------------------------------------
+   ПРИМЕР СЕРВЕРНОГО ЭКСПОРТА В MP3 (Google Cloud TTS)
+
+   Замените <YOUR_API_KEY> и раскомментируйте кнопку в HTML.
+
+   async function exportViaServer(text, lang = 'ru-RU', voice = 'ru-RU-Wavenet-D') {
+     statusEl.textContent = '☁ Синтез через Google Cloud...';
+     const res = await fetch(
+       'https://texttospeech.googleapis.com/v1/text:synthesize?key=<YOUR_API_KEY>',
+       {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+           input: { text },
+           voice: { languageCode: lang, name: voice },
+           audioConfig: { audioEncoding: 'MP3', speakingRate: 1.0, pitch: 0 }
+         })
+       }
+     );
+     const data = await res.json();
+     if (!data.audioContent) { statusEl.textContent = '❌ Ошибка: ' + JSON.stringify(data); return; }
+
+     const blob = new Blob(
+       [Uint8Array.from(atob(data.audioContent), c => c.charCodeAt(0))],
+       { type: 'audio/mpeg' }
+     );
+     const a = document.createElement('a');
+     a.href = URL.createObjectURL(blob);
+     a.download = 'speech.mp3';
+     a.click();
+     statusEl.textContent = '✅ MP3 готов';
+   }
+
+   Аналогично для Yandex SpeechKit:
+   https://tts.api.cloud.yandex.net/speech/v1.0/tts:synthesize
+-------------------------------------------------------------- */
+
+/* ============ 7. ПРОЧЕЕ ============ */
+
+rateEl.addEventListener('input', () => rateVal.textContent = parseFloat(rateEl.value).toFixed(1) + 'x');
+pitchEl.addEventListener('input', () => pitchVal.textContent = parseFloat(pitchEl.value).toFixed(1));
+
+langEl.addEventListener('change', () => {
+  loadVoices();
+  if (!autoLangEl.checked) detectedEl.textContent = langEl.value;
+});
+
+autoLangEl.addEventListener('change', () => {
+  if (autoLangEl.checked) updateDetectedLanguage();
+});
+
+// Определение языка с задержкой (debounce)
+let detectTimer;
+function updateReadablePreview() {
+  const text = textEl.value.trim();
+  if (text) {
+    renderReadable(text);
+  } else {
+    readableEl.classList.remove('visible');
+  }
+}
+
+textEl.addEventListener('input', () => {
+  clearTimeout(detectTimer);
+  detectTimer = setTimeout(() => {
+    updateDetectedLanguage();
+    updateReadablePreview();
+  }, 300);
+});
+
+// Инициализация
+updateDetectedLanguage();
+updateReadablePreview();
+renderHistory();
+
+// Снимаем выделение при уходе со страницы
+window.addEventListener('beforeunload', () => speechSynthesis.cancel());
+</script>
+
+</body>
+          </html>
